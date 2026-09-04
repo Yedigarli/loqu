@@ -1,7 +1,8 @@
 # Loqu
 
-An offline-first reader for long-form articles and screenplays, with built-in
-read-aloud. No account, no server, no ads, no analytics.
+An offline-first reader for long-form articles and screenplays, with read-aloud
+that keeps playing when the screen is off. No account, no server, no ads, no
+analytics.
 
 You paste a URL. The phone itself fetches the page, strips it down to the text,
 and stores it locally. From then on it opens with no signal — on a plane, on the
@@ -22,7 +23,15 @@ saves a page to my phone and reads it to me on the way to work.
 ## What it does
 
 - **Save any article link** — fetched and cleaned on the device, then readable forever offline
-- **Read aloud (TTS)** — speed 0.8x–2.0x, paragraph-accurate, uses your phone's own speech engine
+- **Read aloud that survives the screen turning off** — a proper Android media
+  foreground service owns the speech engine, so playback continues when you leave
+  the app or lock the phone. Lock-screen and notification transport controls,
+  speed 0.8x–2.0x, an incoming call pauses it and it resumes afterwards, and
+  unplugging headphones pauses instead of blasting the room.
+- **Follows along while it reads** — the paragraph being spoken is highlighted and
+  the page scrolls to it; dragging the page yourself suspends the follow for a few seconds
+- **Resumes where you stopped** — reopening a half-listened article picks up at the
+  same point, not at the top
 - **Screenplay mode** — keeps the monospace column and bolds `INT.` / `EXT.` / `FADE IN` so scripts are actually readable on a phone
 - **4 reading themes** — light, dark, AMOLED black, sepia paper; adjustable font size and family
 - **Reading stats** — daily streak, words read, minutes listened, category breakdown
@@ -33,6 +42,7 @@ saves a page to my phone and reads it to me on the way to work.
 Being explicit so nobody downloads this expecting something it isn't:
 
 - **No sync between devices.** There is no server, so there is nothing to sync through.
+- **No playback queue.** You listen to one article at a time, not a playlist.
 - **No iOS build** yet. Android only.
 - **No import** from Pocket/Instapaper/Omnivore exports yet.
 - **No PDF or EPUB.** Web pages and screenplay pages only.
@@ -47,15 +57,19 @@ The whole list, and why:
 | Permission | Why |
 |---|---|
 | `INTERNET` | to fetch a page the one time you save it |
-| `VIBRATE` | haptic feedback on button presses |
 | `ACCESS_NETWORK_STATE` | declared by the React Native framework, not by app code |
+| `VIBRATE` | haptic feedback on button presses |
+| `FOREGROUND_SERVICE` | run read-aloud as a service so it is not killed when you leave the app |
+| `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | the specific service type Android 14+ requires for audio playback |
+| `POST_NOTIFICATIONS` | the playback notification is the control surface while the app is closed (Android 13+) |
+| `WAKE_LOCK` | keep the CPU awake while speaking with the screen off; released the moment playback stops |
 | `com.husu.reader.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | React Native internal; a self-scoped permission that lets the app talk to its own broadcast receivers. No other app can use it. |
 
 No storage permission. No location. No contacts. No overlay. No ad SDK, no
 analytics SDK, no crash reporter. Verify it yourself before installing:
 
 ```
-aapt2 dump badging Loqu-1.0.0.apk | grep uses-permission
+aapt2 dump permissions Loqu-1.1.0.apk
 ```
 
 ## Install
@@ -70,10 +84,16 @@ aapt2 dump badging Loqu-1.0.0.apk | grep uses-permission
 Play Store version eventually ships it will be signed with a different key, and
 Android will ask you to uninstall this one first. Saved articles will not carry over.
 
-## Known issues in 1.0.0
+Upgrading from 1.0.0 installs over the top and keeps your library.
 
-Honest list, all reproduced on a real device:
+## Known issues in 1.1.0
 
+Honest list, all reproduced:
+
+- Background playback is verified on a stock Android 16 device and on a Redmi Note 8
+  Pro for everything except the screen-off endurance case. **Aggressive battery
+  managers (MIUI, EMUI, ColorOS) are the case I cannot fully test** — if audio dies
+  on yours, that is the bug report I most want.
 - Reading-time chips on the Discover screen clip at the right edge on 1080x2340 screens
 - Discover feed titles are hardcoded English even when the UI language is not
 - Memory churn grows with library size — the whole library is re-parsed on every
